@@ -1,0 +1,26 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.coverage
+htmlcov/
+*.sqlite3
+*.db
+tmp/
+out/
+.env
+.env.*
+
+# Auth/session material must never enter source control.
+profile_*/
+auth/
+*.cookies.json
+storage_state.json
+secrets.json
+*.har
+incidents/
+artifacts/

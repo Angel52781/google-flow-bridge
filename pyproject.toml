@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "flow-bridge"
+version = "0.1.0.dev0"
+description = "Agent-friendly control plane and local browser bridge for Google Flow, built on gflow-cli."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Angel52781" }]
+dependencies = [
+  "click>=8.1,<9",
+  "gflow-cli==0.78.0",
+  "mcp>=2,<3",
+]
+
+[project.scripts]
+flowctl = "flow_bridge.cli:main"
+flowctl-mcp = "flow_bridge.mcp_server:main"
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8,<9",
+  "pytest-asyncio>=0.24,<1",
+  "ruff>=0.12,<1",
+  "pyright>=1.1,<2",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/flow_bridge"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -1,0 +1,24 @@
+[Unit]
+Description=Flow Bridge MCP daemon
+After=network-online.target flow-bridge-xvfb.service
+Wants=network-online.target
+Requires=flow-bridge-xvfb.service
+
+[Service]
+Type=simple
+WorkingDirectory=@FLOW_BRIDGE_ROOT@
+EnvironmentFile=%h/.config/flow-bridge/flow-bridge.env
+ExecStart=@FLOW_BRIDGE_ROOT@/.venv/bin/flowctl-mcp --transport streamable-http --host 127.0.0.1 --port 8765 --path /mcp
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=false
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=@FLOW_BRIDGE_STATE@ @GFLOW_CLI_HOME@
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=default.target
