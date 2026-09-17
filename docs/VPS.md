@@ -63,7 +63,7 @@ This appends Chromium's `--no-sandbox` flag explicitly. Prefer a dedicated OS ac
 `flowctl-mcp` supports stdio and Streamable HTTP:
 
 ```bash
-flowctl-mcp --transport streamable-http --host 127.0.0.1 --port 8765 --path /mcp
+flowctl-mcp --transport streamable-http --host 127.0.0.1 --port 8877 --path /mcp
 ```
 
 Bind to loopback by default. Do not expose the MCP endpoint directly to the public internet. Put authenticated infrastructure such as an existing internal relay in front of it when remote access is required.
@@ -101,3 +101,21 @@ A VPS deployment is not considered proven until all of these pass from the Linux
 8. same-`request_id` replay returns the existing job without another submit.
 
 Post-submit recovery after process loss remains a separate evidence gate on migrated `flow.google.com` accounts. Until it is solved, ambiguous jobs remain fail-closed.
+
+## Multiple Google accounts
+
+Use one gflow profile directory per Google account. Never share one Chromium profile between accounts.
+
+After authenticating a profile, run a no-spend canary and then configure its scheduling policy:
+
+```bash
+flowctl canary --profile account-a
+flowctl accounts configure account-a --max-concurrency 1 --priority 100
+
+flowctl canary --profile account-b
+flowctl accounts configure account-b --max-concurrency 1 --priority 200
+```
+
+Lower priority values are preferred when relative load is equal. The scheduler will not select a disabled account, an incompatible browser profile, an account at its concurrency ceiling, or an account without a passing health canary.
+
+An agent can still request a specific profile explicitly; otherwise Flow Bridge chooses among healthy configured profiles. Live two-account isolation remains an acceptance gate until two independent Google sessions have been authenticated and exercised on the same VPS.

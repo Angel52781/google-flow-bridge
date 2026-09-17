@@ -27,7 +27,11 @@ Implemented:
 
 - privacy-safe profile inventory;
 - runtime compatibility health;
-- deterministic least-active scheduler;
+- per-account enable/disable policy;
+- per-account max concurrency and scheduling priority;
+- explicit health state (`UNKNOWN`, `HEALTHY`, `AUTH_REQUIRED`, `UNHEALTHY`);
+- automatic scheduling only after a passing account canary;
+- deterministic load-aware scheduler across healthy profiles;
 - durable account/job association.
 
 Remaining evidence gate: authenticate at least two independent Flow profiles and prove session isolation and scheduling across both.

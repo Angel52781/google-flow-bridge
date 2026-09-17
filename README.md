@@ -27,7 +27,7 @@ The current development build has been live-validated on Windows against a migra
 - configurable Chromium-family browser runtime;
 - profile/runtime major-version safety guard;
 - privacy-safe account inventory;
-- deterministic account scheduler;
+- deterministic multi-account scheduler with enable/disable, per-account concurrency limits, priorities, and health-canary gating;
 - SQLite job store and event journal;
 - durable no-spend Flow canary;
 - exactly-once text-to-video submission using Veo 3.1 Lite;
@@ -74,6 +74,19 @@ Inspect local profiles without exposing Google account emails:
 uv run flowctl accounts list
 ```
 
+Configure scheduling policy for one authenticated profile:
+
+```bash
+uv run flowctl accounts configure <profile> \
+  --max-concurrency 1 \
+  --priority 100
+
+uv run flowctl accounts disable <profile>
+uv run flowctl accounts enable <profile>
+```
+
+Each gflow profile is treated as an isolated Google account. Automatic scheduling only uses accounts that are enabled, browser-compatible, below their concurrency limit, and have passed a Flow Bridge canary. Account emails and browser credentials are never stored in the scheduler database.
+
 Run a zero-generation Flow bootstrap canary:
 
 ```bash
@@ -115,7 +128,7 @@ Or run it as a loopback-only Streamable HTTP daemon:
 DISPLAY=:98 FLOW_BRIDGE_HEADLESS=0 uv run flowctl-mcp \
   --transport streamable-http \
   --host 127.0.0.1 \
-  --port 8765 \
+  --port 8877 \
   --path /mcp
 ```
 

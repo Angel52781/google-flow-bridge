@@ -5,9 +5,9 @@ from typing import Any
 
 from gflow_cli import profile_store
 from gflow_cli.api.transports._common import flow_landing_kind, raise_if_known_landing
-from gflow_cli.errors import AuthMissingError, FlowAppError
+from gflow_cli.errors import AuthExpiredError, AuthMissingError, FlowAppError
 
-from .accounts import list_account_snapshots
+from .accounts import AccountHealth, AccountRegistry, list_account_snapshots
 from .browser_runtime import (
     BrowserRuntime,
     ExecutableFlowApiClient,
@@ -92,9 +92,15 @@ async def run_canary(
         selected_snapshot = next((item for item in snapshots if item.name == profile), None)
         if selected_snapshot is None:
             raise LookupError(f"Unknown gflow profile: {profile}")
-        selected = AccountScheduler(store).select([selected_snapshot])
+        selected = AccountScheduler(store).select(
+            [selected_snapshot],
+            require_healthy=False,
+        )
     else:
-        selected = AccountScheduler(store).select(snapshots)
+        selected = AccountScheduler(store).select(
+            snapshots,
+            require_healthy=False,
+        )
 
     job, created = store.create_or_get(
         request_id=request_id,
@@ -114,6 +120,16 @@ async def run_canary(
     try:
         result = await doctor(selected.name, browser, headless=headless)
     except Exception as exc:
+        health = (
+            AccountHealth.AUTH_REQUIRED
+            if isinstance(exc, (AuthMissingError, AuthExpiredError))
+            else AccountHealth.UNHEALTHY
+        )
+        AccountRegistry().record_health(
+            selected.name,
+            health,
+            error_type=type(exc).__name__,
+        )
         store.transition(
             job.job_id,
             JobState.FAILED_RETRYABLE,
@@ -123,6 +139,10 @@ async def run_canary(
         )
         raise
 
+    AccountRegistry().record_health(
+        selected.name,
+        AccountHealth.HEALTHY,
+    )
     job = store.transition(
         job.job_id,
         JobState.COMPLETED,

@@ -43,3 +43,42 @@ def test_list_account_snapshots_redacts_email_and_checks_runtime(monkeypatch, tm
     assert snapshot.runtime_compatible is True
     assert snapshot.browser_strategy == "chrome"
     assert "google_account" not in snapshot.to_dict()
+
+
+def test_account_registry_persists_policy(tmp_path: Path) -> None:
+    registry = accounts.AccountRegistry(tmp_path / "accounts.sqlite3")
+    policy = registry.upsert(
+        "alpha",
+        enabled=False,
+        max_concurrency=3,
+        priority=20,
+    )
+
+    assert policy.name == "alpha"
+    assert policy.enabled is False
+    assert policy.max_concurrency == 3
+    assert policy.priority == 20
+    assert registry.effective("alpha") == policy
+
+
+def test_account_registry_defaults_are_safe(tmp_path: Path) -> None:
+    registry = accounts.AccountRegistry(tmp_path / "accounts.sqlite3")
+    policy = registry.effective("new-profile")
+    assert policy.enabled is True
+    assert policy.max_concurrency == 1
+    assert policy.priority == 100
+    assert policy.health_state is accounts.AccountHealth.UNKNOWN
+
+
+def test_account_registry_records_health_without_changing_policy(tmp_path: Path) -> None:
+    registry = accounts.AccountRegistry(tmp_path / "accounts.sqlite3")
+    registry.upsert("alpha", max_concurrency=3, priority=20)
+    policy = registry.record_health(
+        "alpha",
+        accounts.AccountHealth.HEALTHY,
+    )
+    assert policy.health_state is accounts.AccountHealth.HEALTHY
+    assert policy.health_updated_at is not None
+    assert policy.last_error_type is None
+    assert policy.max_concurrency == 3
+    assert policy.priority == 20

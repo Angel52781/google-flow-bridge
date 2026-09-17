@@ -8,7 +8,7 @@ from typing import Any
 
 import click
 
-from .accounts import list_account_snapshots
+from .accounts import AccountRegistry, list_account_snapshots
 from .generation import VideoGenerationSpec, generate_video_once
 from .health import doctor as run_doctor
 from .health import run_canary
@@ -50,8 +50,66 @@ def accounts_list(browser: Path | None, json_output: bool) -> None:
         click.echo(
             f"{default} {item.name}: cookies={item.cookies_present} "
             f"profile={item.profile_version or 'unknown'} runtime={item.runtime_version or 'unknown'} "
-            f"compatible={compatible} strategy={item.browser_strategy or 'unset'}"
+            f"compatible={compatible} strategy={item.browser_strategy or 'unset'} "
+            f"enabled={item.enabled} health={item.health_state.value} "
+            f"max_concurrency={item.max_concurrency} priority={item.priority}"
         )
+
+
+@accounts.command("configure")
+@click.argument("profile")
+@click.option("--max-concurrency", type=click.IntRange(1, 32), default=1, show_default=True)
+@click.option("--priority", type=int, default=100, show_default=True, help="Lower values are preferred.")
+@click.option("--enabled/--disabled", default=True, show_default=True)
+@click.option("--json-output", is_flag=True, help="Emit machine-readable JSON.")
+def accounts_configure(
+    profile: str,
+    max_concurrency: int,
+    priority: int,
+    enabled: bool,
+    json_output: bool,
+) -> None:
+    """Configure scheduling policy for one gflow profile."""
+    known = {snapshot.name for snapshot in list_account_snapshots()}
+    if profile not in known:
+        raise click.ClickException(
+            f"Unknown gflow profile: {profile}. Authenticate/create the profile before configuring it."
+        )
+    policy = AccountRegistry().upsert(
+        profile,
+        enabled=enabled,
+        max_concurrency=max_concurrency,
+        priority=priority,
+    )
+    payload = {
+        "profile": policy.name,
+        "enabled": policy.enabled,
+        "max_concurrency": policy.max_concurrency,
+        "priority": policy.priority,
+    }
+    if json_output:
+        click.echo(json.dumps(payload, ensure_ascii=False))
+        return
+    click.echo(
+        f"{policy.name}: enabled={policy.enabled} "
+        f"max_concurrency={policy.max_concurrency} priority={policy.priority}"
+    )
+
+
+@accounts.command("enable")
+@click.argument("profile")
+def accounts_enable(profile: str) -> None:
+    """Enable one account for automatic scheduling."""
+    policy = AccountRegistry().set_enabled(profile, True)
+    click.echo(f"{policy.name}: enabled=True")
+
+
+@accounts.command("disable")
+@click.argument("profile")
+def accounts_disable(profile: str) -> None:
+    """Disable one account without deleting its browser profile."""
+    policy = AccountRegistry().set_enabled(profile, False)
+    click.echo(f"{policy.name}: enabled=False")
 
 
 @main.group()
