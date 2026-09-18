@@ -53,7 +53,6 @@ def test_account_registry_persists_policy(tmp_path: Path) -> None:
         max_concurrency=3,
         priority=20,
     )
-
     assert policy.name == "alpha"
     assert policy.enabled is False
     assert policy.max_concurrency == 3

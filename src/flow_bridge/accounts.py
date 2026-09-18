@@ -38,11 +38,7 @@ class AccountPolicy:
 
 
 class AccountRegistry:
-    """Operational policy for gflow profiles.
-
-    Profiles remain owned by gflow-cli. Flow Bridge stores only scheduling
-    metadata, never Google emails, cookies, or auth material.
-    """
+    """Operational policy for gflow profiles without storing Google identity data."""
 
     def __init__(self, path: str | Path | None = None) -> None:
         self.path = Path(path) if path is not None else default_db_path()
@@ -81,13 +77,9 @@ class AccountRegistry:
                     "ALTER TABLE account_policies ADD COLUMN health_state TEXT NOT NULL DEFAULT 'UNKNOWN'"
                 )
             if "health_updated_at" not in columns:
-                connection.execute(
-                    "ALTER TABLE account_policies ADD COLUMN health_updated_at TEXT"
-                )
+                connection.execute("ALTER TABLE account_policies ADD COLUMN health_updated_at TEXT")
             if "last_error_type" not in columns:
-                connection.execute(
-                    "ALTER TABLE account_policies ADD COLUMN last_error_type TEXT"
-                )
+                connection.execute("ALTER TABLE account_policies ADD COLUMN last_error_type TEXT")
 
     @staticmethod
     def _policy(row: sqlite3.Row) -> AccountPolicy:
@@ -125,18 +117,37 @@ class AccountRegistry:
         if max_concurrency < 1:
             raise ValueError("max_concurrency must be >= 1")
         now = _now()
+        current = self.get(name)
+        health_state = current.health_state if current else AccountHealth.UNKNOWN
+        health_updated_at = current.health_updated_at if current else None
+        last_error_type = current.last_error_type if current else None
+        created_at = current.created_at if current and current.created_at else now
         with self._connect() as connection:
             connection.execute(
                 """
-                INSERT INTO account_policies(name, enabled, max_concurrency, priority, created_at, updated_at)
-                VALUES(?, ?, ?, ?, ?, ?)
+                INSERT INTO account_policies(
+                    name, enabled, max_concurrency, priority,
+                    health_state, health_updated_at, last_error_type,
+                    created_at, updated_at
+                )
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(name) DO UPDATE SET
                     enabled = excluded.enabled,
                     max_concurrency = excluded.max_concurrency,
                     priority = excluded.priority,
                     updated_at = excluded.updated_at
                 """,
-                (name, int(enabled), max_concurrency, priority, now, now),
+                (
+                    name,
+                    int(enabled),
+                    max_concurrency,
+                    priority,
+                    health_state.value,
+                    health_updated_at,
+                    last_error_type,
+                    created_at,
+                    now,
+                ),
             )
         policy = self.get(name)
         assert policy is not None

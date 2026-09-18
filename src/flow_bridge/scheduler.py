@@ -19,7 +19,7 @@ class ScheduledAccount:
 
 
 class AccountScheduler:
-    """Small deterministic scheduler; richer policies can replace it later."""
+    """Deterministic load-aware scheduler across healthy isolated profiles."""
 
     def __init__(self, store: JobStore) -> None:
         self.store = store
